@@ -11,11 +11,8 @@ app.register(fastifyWebsocket);
 
 // Setup the WebSocket route for workspace connections
 app.register(async function (fastify) {
-  fastify.get("/workspace/:documentId", { websocket: true }, (connection, req) => {
+  fastify.get("/workspace/:documentId", { websocket: true }, (socket, req) => {
     const { documentId } = req.params as { documentId: string };
-    
-    // Extract the raw WebSocket from the fastify connection wrapper
-    const socket = connection.socket;
     
     // Register this socket to the specific room
     registerConnection(documentId, socket);
