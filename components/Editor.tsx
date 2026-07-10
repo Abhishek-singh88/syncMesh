@@ -81,7 +81,7 @@ export function Editor({ yText, label, className, isOffline, onToggleConnection 
             )}
           >
             {isOffline ? <WifiOff size={12} /> : <Wifi size={12} />}
-            {isOffline ? "Offline" : "Connected"}
+            {isOffline ? "Stay Offline" : "Go Offline"}
           </button>
         )}
       </div>
