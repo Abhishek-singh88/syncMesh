@@ -1,96 +1,71 @@
-"use client";
-
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as Y from "yjs";
-import { cn } from "@/lib/utils";
-import { Wifi, WifiOff } from "lucide-react";
+import { cn } from "../lib/utils";
 
 interface EditorProps {
   yText: Y.Text;
-  label: string;
   className?: string;
-  isOffline?: boolean;
-  onToggleConnection?: () => void;
 }
 
-export function Editor({ yText, label, className, isOffline, onToggleConnection }: EditorProps) {
-  const [value, setValue] = useState("");
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+export function Editor({ yText, className }: EditorProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize and listen to Yjs changes
   useEffect(() => {
-    setValue(yText.toString());
+    const textarea = textareaRef.current;
+    if (!textarea) return;
 
-    const observer = () => {
-      // When Y.Text changes from another client, update our local state
-      setValue(yText.toString());
+    // Sync textarea changes to Yjs
+    const handleInput = (e: Event) => {
+      const target = e.target as HTMLTextAreaElement;
+      
+      // Calculate delta
+      const lengthDiff = target.value.length - yText.toString().length;
+      const selectionStart = target.selectionStart;
+
+      if (lengthDiff > 0) {
+        // Insertion
+        const insertedText = target.value.substring(
+          selectionStart - lengthDiff,
+          selectionStart
+        );
+        yText.insert(selectionStart - lengthDiff, insertedText);
+      } else if (lengthDiff < 0) {
+        // Deletion
+        yText.delete(selectionStart, Math.abs(lengthDiff));
+      }
     };
 
-    yText.observe(observer);
-    return () => yText.unobserve(observer);
+    // Sync Yjs changes to textarea
+    const handleYjsUpdate = () => {
+      if (!textarea) return;
+      const currentSelectionStart = textarea.selectionStart;
+      const currentSelectionEnd = textarea.selectionEnd;
+      
+      textarea.value = yText.toString();
+      
+      // Restore cursor position
+      textarea.setSelectionRange(currentSelectionStart, currentSelectionEnd);
+    };
+
+    // Initial sync
+    textarea.value = yText.toString();
+
+    // Event listeners
+    textarea.addEventListener("input", handleInput);
+    yText.observe(handleYjsUpdate);
+
+    return () => {
+      textarea.removeEventListener("input", handleInput);
+      yText.unobserve(handleYjsUpdate);
+    };
   }, [yText]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
-    setValue(newValue);
-
-    const oldVal = yText.toString();
-    
-    // Simple diffing algorithm to preserve CRDT character-level intent
-    // rather than replacing the entire string which ruins concurrent edits.
-    let start = 0;
-    while (start < oldVal.length && start < newValue.length && oldVal[start] === newValue[start]) {
-      start++;
-    }
-    
-    let endOld = oldVal.length - 1;
-    let endNew = newValue.length - 1;
-    while (endOld >= start && endNew >= start && oldVal[endOld] === newValue[endNew]) {
-      endOld--;
-      endNew--;
-    }
-    
-    const removeCount = endOld - start + 1;
-    const insertStr = newValue.slice(start, endNew + 1);
-
-    yText.doc?.transact(() => {
-      if (removeCount > 0) {
-        yText.delete(start, removeCount);
-      }
-      if (insertStr.length > 0) {
-        yText.insert(start, insertStr);
-      }
-    }, "local-textarea");
-  };
-
   return (
-    <div className={cn("flex flex-col h-full bg-[#161618] rounded-2xl border border-white/5 shadow-2xl overflow-hidden transition-all duration-300", isOffline && "opacity-80 scale-[0.99]", className)}>
-      <div className="flex items-center justify-between px-5 py-3.5 bg-black/40 border-b border-white/5 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className={cn("w-2.5 h-2.5 rounded-full transition-colors shadow-sm", isOffline ? "bg-red-500 shadow-red-500/50" : "bg-emerald-500 shadow-emerald-500/50")}></div>
-          <h2 className="text-sm font-medium text-neutral-200 tracking-wide">{label}</h2>
-        </div>
-        {onToggleConnection && (
-          <button 
-            onClick={onToggleConnection}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider rounded-md transition-all",
-              isOffline 
-                ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" 
-                : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-            )}
-          >
-            {isOffline ? <WifiOff size={12} /> : <Wifi size={12} />}
-            {isOffline ? "Stay Offline" : "Go Offline"}
-          </button>
-        )}
-      </div>
+    <div className={cn("w-full h-full flex flex-col", className)}>
       <textarea
-        ref={textAreaRef}
-        value={value}
-        onChange={handleChange}
-        className="flex-1 w-full p-5 bg-transparent text-neutral-300 resize-none outline-none font-mono text-[14px] leading-relaxed selection:bg-indigo-500/30"
-        placeholder="Type here to see changes sync across nodes..."
+        ref={textareaRef}
+        placeholder="Start typing... Your edits sync instantly across all devices."
+        className="w-full h-full min-h-[60vh] resize-none bg-transparent text-white/90 text-lg md:text-xl font-mono leading-relaxed tracking-wide placeholder:text-neutral-600 focus:outline-none focus:ring-0 p-4 border-none"
         spellCheck={false}
       />
     </div>
