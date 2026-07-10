@@ -1,0 +1,24 @@
+config:
+  target: "ws://localhost:3001"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm up phase"
+    - duration: 60
+      arrivalRate: 20
+      name: "Stress testing phase"
+  engines:
+    ws: {}
+
+scenarios:
+  - name: "Simulate rapid typing collaboration"
+    engine: "ws"
+    flow:
+      - connect: "/workspace/load-test"
+      - loop:
+          - send: 
+              # Sending a simulated raw binary string. Artillery can't natively do Yjs Uint8Array encoding easily,
+              # but this is enough to trigger the socket ingestion handler and hit our rate limiter / Redis pubsub.
+              data: "simulate-binary-payload-data"
+          - think: 0.1 # Type every 100ms (10 ops/sec per user)
+        count: 50
