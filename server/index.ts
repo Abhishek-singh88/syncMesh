@@ -7,6 +7,11 @@ const app = Fastify({
   logger: true
 });
 
+// Basic healthcheck route for Render deployment
+app.get("/", async (request, reply) => {
+  return { status: "ok", service: "syncmesh-backend" };
+});
+
 // Register the WebSocket plugin
 app.register(fastifyWebsocket);
 
