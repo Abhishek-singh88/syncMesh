@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Fastify from "fastify";
 import fastifyWebsocket from "@fastify/websocket";
 import { registerConnection, unregisterConnection, broadcastToRoom } from "./roomManager";
@@ -36,8 +37,12 @@ app.register(async function (fastify) {
   });
 });
 
+import { connectDB } from "./db";
+
 const start = async () => {
   try {
+    await connectDB();
+    
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
     await app.listen({ port, host: '0.0.0.0' });
     console.log(`[SyncMesh Engine] Orchestration Server listening on ws://localhost:${port}`);
